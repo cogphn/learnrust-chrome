@@ -204,7 +204,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let mut dl_url_chains = connection.prepare("select id, chain_index, url from downloads_url_chains").unwrap();
             let mut cwtr = match Writer::from_path(_dlucop){
                 Ok(w) => w,
-                Err(e) => panic!("Cannot open dl url chains for writing: {}",e)
+                Err(e) => panic!("Cannot open dl url chains output file for writing: {}",e)
             };
 
             let mut dl_url_chain_rowtrack = 0;
@@ -228,6 +228,54 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Ok(()) => println!("[*] Download url chains: wrote {} rows", dl_url_chain_rowtrack),
                 Err(e)  => println!("[!] error writing data for download_url_chains: {}",e)
             };
+        } else if tablename == "segments" {
+            println!("[*] reading segments data...");
+            let statement = "select a.id as segment_id, a.name as segment_name, a.url_id, 
+            b.url, b.title, b.visit_count, b.typed_count, b.last_visit_time, b.hidden 
+            from segments a left join urls b
+            on a.url_id = b.id 
+            order by a.name ";
+
+            let mut segments = connection.prepare(statement).unwrap();
+            let mut cwtr = match Writer::from_path(output_path){
+                Ok(w) => w,
+                Err(e) => panic!("cannot open output file for writing: {}",e)
+            };
+            let mut rowtrack = 0;
+            match cwtr.write_record(&["segment_id","segment_name","url_id", "url", "title", "visit_count", "typed_count", "last_visit_time", "last_visit_time_dtutc","hidden"]){
+                Ok(x) => x,
+                Err(e) => println!("[!] error writing header for segment data: {}",e)
+            }
+            /////
+            while let State::Row = segments.next().unwrap() {
+                let lv = segments.read::<i64>(7).unwrap();
+                let lv_ts_utc = get_timestamp(lv).replace(" UTC","");
+                
+                match cwtr.write_record(
+                    &[
+                        &segments.read::<String>(0).unwrap(),
+                        &segments.read::<String>(1).unwrap(),
+                        &segments.read::<String>(2).unwrap(),
+                        &segments.read::<String>(3).unwrap(),
+                        &segments.read::<String>(4).unwrap(),
+                        &segments.read::<String>(5).unwrap(),
+                        &segments.read::<String>(6).unwrap(),
+                        &segments.read::<String>(7).unwrap(),
+                        &lv_ts_utc,
+                        &segments.read::<String>(8).unwrap()
+                    ]
+                ){
+                    Ok(x) => x,
+                    Err(e) => println!("[!] Error at row {}:{}",rowtrack,e)
+                };
+                rowtrack+=1;
+            }
+            match cwtr.flush(){
+                Ok(()) => println!("[*] Segments: wrote {} rows", rowtrack),
+                Err(e)  => println!("[!] error writing data for segments: {}",e)
+            };
+            /////
+
         }
     println!("[.] Done.");
     Ok(())
