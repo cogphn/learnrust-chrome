@@ -8,26 +8,11 @@ use serde::Serialize;
 use std::fs::File;
 use std::io::prelude::*;
 
-//use chrono::Utc;
-//use chrono::TimeZone;
-//use chrono::Duration;
 use chrono::{DateTime, NaiveDateTime, Utc, TimeZone, Duration};
 
 extern crate argparse;
 
 use argparse::{ArgumentParser, Store};
-
-/*
-use yaml_rust::YamlLoader;
-
-
-let _configcontent = match fs::read_to_string("tables.yml") {
-    Ok(c) => c,
-    Err(e) => panic!("Failed to open config file: {}",e)
-};
-
-*/
-
 
 
 #[derive(Serialize)]
