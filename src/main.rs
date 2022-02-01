@@ -1,4 +1,5 @@
 extern crate csv;
+//extern crate yaml_rust;
 
 use sqlite::State;
 use std::error::Error;
@@ -7,13 +8,27 @@ use serde::Serialize;
 use std::fs::File;
 use std::io::prelude::*;
 
-use chrono::Utc;
-use chrono::TimeZone;
-use chrono::Duration;
+//use chrono::Utc;
+//use chrono::TimeZone;
+//use chrono::Duration;
+use chrono::{DateTime, NaiveDateTime, Utc, TimeZone, Duration};
 
 extern crate argparse;
 
 use argparse::{ArgumentParser, Store};
+
+/*
+use yaml_rust::YamlLoader;
+
+
+let _configcontent = match fs::read_to_string("tables.yml") {
+    Ok(c) => c,
+    Err(e) => panic!("Failed to open config file: {}",e)
+};
+
+*/
+
+
 
 #[derive(Serialize)]
 struct DownloadsDataRow<'a> {
@@ -55,6 +70,12 @@ fn get_timestamp(gts: i64) -> String {
     return  (_c_starttime + _d).to_string() ;
 }
 
+fn get_moz_ts(mts: i64) -> String {
+    //TODO: fix for higher res timestamps
+    let mts_1 = mts / 1000000;
+    let d = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(mts_1,0), Utc);
+    return d.to_string();
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("[*] Starting...");
@@ -91,7 +112,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let connection = sqlite::open(infile).unwrap();
 
     if tablename == "urls"{
-            
             let mut urls_statement = connection.prepare("select id, url, title, visit_count, typed_count, last_visit_time, hidden from urls").unwrap();
             println!("[*] Reading URL data...");
             let mut rowtrack =0;
@@ -233,8 +253,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let statement = "select a.id as segment_id, a.name as segment_name, a.url_id, 
             b.url, b.title, b.visit_count, b.typed_count, b.last_visit_time, b.hidden 
             from segments a left join urls b
-            on a.url_id = b.id 
-            order by a.name ";
+            on a.url_id = b.id ";
 
             let mut segments = connection.prepare(statement).unwrap();
             let mut cwtr = match Writer::from_path(output_path){
@@ -276,6 +295,150 @@ fn main() -> Result<(), Box<dyn Error>> {
             };
             /////
 
+        } else if tablename == "visits" {
+            println!("[*] reading visits data...");
+            let statement = "select 
+                a.id as visits_id, a.url as url_id,
+                a.visit_time,
+                a.from_visit,
+                a.transition, a.segment_id,
+                a.visit_duration, 
+                a.incremented_omnibox_typed_score, 
+                a.opener_visit,
+                b.url as urls_url, b.title, b.visit_count, b.typed_count, b.last_visit_time, b.hidden
+                from visits a 
+                left join urls b on a.url = b.id
+                left join segments c on a.segment_id = c.id";
+            
+            let mut visits = connection.prepare(statement).unwrap();
+            let mut cwtr = match Writer::from_path(output_path){
+                Ok(w) => w,
+                Err(e) => panic!("cannot open output file for writing: {}",e)
+            };
+            let mut rowtrack = 0;
+            match cwtr.write_record(&[
+                "visits_id","url_id","visit_time","from_visit","transition","segment_id","visit_duration","incremented_omnibox_typed_score","opener_visit","urls_url",
+                "title","visit_count","typed_count","last_visit_time","hidden"]){
+                Ok(x) => x,
+                Err(e) => println!("[!] error writing header for segment data: {}",e)
+            }
+            while let State::Row = visits.next().unwrap() {
+                let vt = visits.read::<i64>(2).unwrap();
+                let vt_ts_utc = get_timestamp(vt).replace(" UTC","");
+
+                let lv = visits.read::<i64>(13).unwrap();
+                let lv_ts_utc = get_timestamp(lv).replace(" UTC","");
+                let opener_visit = match visits.read::<String>(8) {
+                    Ok(o) => o,
+                    Err(_e) => "NULL".to_string()
+                };
+
+                match cwtr.write_record(
+                    &[
+                        &visits.read::<String>(0).unwrap(),
+                        &visits.read::<String>(1).unwrap(),
+                        &vt_ts_utc,
+                        &visits.read::<String>(3).unwrap(),
+                        &visits.read::<String>(4).unwrap(),
+                        &visits.read::<String>(5).unwrap(),
+                        &visits.read::<String>(6).unwrap(),
+                        &visits.read::<String>(7).unwrap(),
+                        &opener_visit,
+                        &visits.read::<String>(9).unwrap(),
+                        &visits.read::<String>(10).unwrap(),
+                        &visits.read::<String>(11).unwrap(),
+                        &visits.read::<String>(12).unwrap(),
+                        &lv_ts_utc,
+                        &visits.read::<String>(14).unwrap()
+                    ]
+                ){
+                    Ok(x) => x,
+                    Err(e) => println!("[!] Error at row {}:{}",rowtrack,e)
+                };
+                rowtrack+=1;
+            }
+            match cwtr.flush(){
+                Ok(()) => println!("[*] {}: wrote {} rows", tablename, rowtrack),
+                Err(e)  => println!("[!] error writing data for {}: {}",tablename, e)
+            };
+        }else if tablename == "moz_places" {
+            println!("[*] reading {} data...", tablename);
+            let statement = "select id,url,title,rev_host,visit_count,hidden,typed,frecency,
+            last_visit_date,guid,foreign_count,url_hash,description,preview_image_url,origin_id,site_name
+             from moz_places";
+            
+            let mut results = connection.prepare(statement).unwrap();
+            let mut cwtr = match Writer::from_path(output_path){
+                Ok(w) => w,
+                Err(e) => panic!("cannot open output file for writing: {}",e)
+            };
+            let mut rowtrack = 0;
+            match cwtr.write_record(&[
+                "id","url","title","rev_host",
+                "visit_count","hidden","typed","frecency",
+                "last_visit_date","last_visit_date_dtutc","guid","foreign_count",
+                "url_hash","description","preview_image_url","origin_id",
+                "site_name"]){
+                Ok(x) => x,
+                Err(e) => println!("[!] error writing header for segment data: {}",e)
+            }
+            while let State::Row = results.next().unwrap() {
+                
+                let i64_lvd : i64 = match results.read::<i64>(8) {
+                    Ok(x) => x,
+                    Err(_e) => 0
+                };
+                //let lvd = results.read::<i64>(8).unwrap();
+                let lvd_dtutc = get_moz_ts(i64_lvd).replace(" UTC","");
+                
+                let title = match results.read::<String>(2) {
+                    Ok(o) => o,
+                    Err(_e) => "NULL".to_string()
+                };
+                let url_hash = match results.read::<String>(12) {
+                    Ok(h) => h,
+                    Err(_e) => "NULL".to_string()
+                };
+                let description = match results.read::<String>(13) {
+                    Ok(h) => h,
+                    Err(_e) => "NULL".to_string()
+                };
+                let origin_id = match results.read::<String>(15) {
+                    Ok(h) => h,
+                    Err(_e) => "NULL".to_string()
+                };
+                
+
+                match cwtr.write_record(
+                    &[
+                        &results.read::<String>(0).unwrap(),
+                        &results.read::<String>(1).unwrap(),
+                        &title,
+                        &results.read::<String>(3).unwrap(),
+                        &results.read::<String>(4).unwrap(),
+                        &results.read::<String>(5).unwrap(),
+                        &results.read::<String>(6).unwrap(),
+                        &results.read::<String>(7).unwrap(),
+                        &i64_lvd.to_string(),                       
+                        &lvd_dtutc,
+                        &results.read::<String>(9).unwrap(),
+                        &results.read::<String>(10).unwrap(),
+                        &results.read::<String>(11).unwrap(),
+                        &url_hash,
+                        &description,
+                        &results.read::<String>(14).unwrap(),
+                        &origin_id
+                    ]
+                ){
+                    Ok(x) => x,
+                    Err(e) => println!("[!] Error at row {}:{}",rowtrack,e)
+                };
+                rowtrack+=1;
+            }
+            match cwtr.flush(){
+                Ok(()) => println!("[*] {}: wrote {} rows", tablename, rowtrack),
+                Err(e)  => println!("[!] error writing data for {}: {}",tablename, e)
+            };
         }
     println!("[.] Done.");
     Ok(())
