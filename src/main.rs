@@ -424,6 +424,92 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Ok(()) => println!("[*] {}: wrote {} rows", tablename, rowtrack),
                 Err(e)  => println!("[!] error writing data for {}: {}",tablename, e)
             };
+        } else if tablename == "moz_historyvisits" {
+            println!("[*] reading {} data...", tablename);
+            let statement = "select a.id as hitoryvisitid, a.from_visit, a.place_id, 
+                a.visit_type, a.session, b.url, b.title, b.rev_host, b.visit_count,
+                b.hidden, b.typed, b.frecency, b.last_visit_date, b.guid, b.foreign_count, b.url_hash, b.description, b.preview_image_url,
+                b.origin_id, b.site_name
+                from moz_historyvisits a join moz_places b on a.place_id = b.id ";
+            let mut results = connection.prepare(statement).unwrap();
+            let mut cwtr = match Writer::from_path(output_path){
+                Ok(w) => w,
+                Err(e) => panic!("cannot open output file for writing: {}",e)
+            };
+
+            let mut rowtrack = 0;
+            match cwtr.write_record(&[
+                "hitoryvisitid","from_visit","place_id","visit_type",
+                "session","url","title","rev_host","visit_count","hidden",
+                "typed","frecency","last_visit_date","last_visit_date_dtutc","guid","foreign_count",
+                "url_hash","description","preview_image_url","origin_id","site_name"
+                ]){
+                Ok(x) => x,
+                Err(e) => println!("[!] error writing header for segment data: {}",e)
+            }
+
+            while let State::Row = results.next().unwrap() {
+                let title = match results.read::<String>(6) {
+                    Ok(h) => h,
+                    Err(_e) => "NULL".to_string()
+                };
+                let description = match results.read::<String>(16) {
+                    Ok(h) => h,
+                    Err(_e) => "NULL".to_string()
+                };
+                let preview_image_url = match results.read::<String>(17) {
+                    Ok(x) => x,
+                    Err(_e) => "NULL".to_string()
+                };
+                let site_name = match results.read::<String>(19) {
+                    Ok(x) => x,
+                    Err(_e) => "NULL".to_string()
+                };
+                let url_hash = match results.read::<String>(15) {
+                    Ok(h) => h,
+                    Err(_e) => "NULL".to_string()
+                };
+                let i64_lvd : i64 = match results.read::<i64>(12) {
+                    Ok(x) => x,
+                    Err(_e) => 0
+                };
+                //let lvd = results.read::<i64>(8).unwrap();
+                let last_visit_date_dtutc = get_moz_ts(i64_lvd).replace(" UTC","");
+                match cwtr.write_record(
+                    &[
+                        &results.read::<String>(0).unwrap(),
+                        &results.read::<String>(1).unwrap(),
+                        &results.read::<String>(2).unwrap(),
+                        &results.read::<String>(3).unwrap(),
+                        &results.read::<String>(4).unwrap(),
+                        &results.read::<String>(5).unwrap(),
+                        &title,
+                        &results.read::<String>(7).unwrap(),
+                        &results.read::<String>(8).unwrap(),
+                        &results.read::<String>(9).unwrap(),
+                        &results.read::<String>(10).unwrap(),
+                        &results.read::<String>(11).unwrap(),
+                        &results.read::<String>(12).unwrap(),
+                        &last_visit_date_dtutc,
+                        &results.read::<String>(13).unwrap(),
+                        &results.read::<String>(14).unwrap(),
+                        &url_hash,
+                        &description,
+                        &preview_image_url,
+                        &results.read::<String>(18).unwrap(),
+                        &site_name
+                    ]
+                ){
+                    Ok(x) => x,
+                    Err(e) => println!("[!] Error at row {}:{}",rowtrack,e)
+                };
+                rowtrack+=1;
+            }
+            match cwtr.flush(){
+                Ok(()) => println!("[*] {}: wrote {} rows", tablename, rowtrack),
+                Err(e)  => println!("[!] error writing data for {}: {}",tablename, e)
+            };
+
         }
     println!("[.] Done.");
     Ok(())
