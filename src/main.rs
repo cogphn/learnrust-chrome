@@ -66,8 +66,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("[*] Starting...");
 
     let mut infile = "".to_string();
-    let mut output_path = "chrome_parse_output.csv".to_string(); 
-    let mut tablename = "urls".to_string();
+    let mut output_path = "output.csv".to_string(); 
+    let mut tablename = "".to_string();
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("Chrome Hisory parse");
