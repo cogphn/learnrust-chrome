@@ -1,0 +1,31 @@
+{
+    "tables":[
+        {
+            "name":"download_url_chains",
+            "config":
+            { "query":"select id, chain_index, url from downloads_url_chains" , 
+                "fields":
+                [
+                    {"name":"id","ord":0,"coltype":"str"},
+                    {"name":"chain_index","ord":1,"coltype":"str"},
+                    {"name":"url","ord":2,"coltype":"str"}
+                ]
+            }
+        },
+        {
+            "name":"urls",
+            "config":{
+                "query":"select id, url, title, visit_count, typed_count, last_visit_time, hidden from urls",
+                "fields": [
+                    {"name":"id", "ord":0,"coltype":"str"},
+                    {"name":"url", "ord":1,"coltype":"str"},
+                    {"name":"title", "ord":2,"coltype":"str"},
+                    {"name":"visit_count", "ord":3,"coltype":"str"},
+                    {"name":"typed_count", "ord":4,"coltype":"str"},
+                    {"name":"last_visit_time", "ord":5,"coltype":"chrome_ts"},
+                    {"name":"hidden", "ord":6,"coltype":"str"}
+                ]
+            }
+        }
+    ]
+}
