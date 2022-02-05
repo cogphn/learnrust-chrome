@@ -77,6 +77,30 @@
                     {"name":"hidden", "ord":8,"coltype":"str"}
                 ]
             }
+        },
+        {
+            "name":"visits",
+            "config":{
+                "query":"select a.id as visits_id, a.url as url_id, a.visit_time, a.from_visit, a.transition, a.segment_id, a.visit_duration, a.incremented_omnibox_typed_score, a.opener_visit, b.url as urls_url, b.title, b.visit_count, b.typed_count, b.last_visit_time, b.hidden from visits a left join urls b on a.url = b.id left join segments c on a.segment_id = c.id",
+                "fields":[
+                    {"name":"visits_id", "ord":0, "coltype":"str"},
+                    {"name":"url_id", "ord":2, "coltype":"str"},
+                    {"name":"visit_time", "ord":3, "coltype":"str"},
+                    {"name":"from_visit", "ord":4, "coltype":"str"},
+                    {"name":"transition", "ord":5, "coltype":"str"},
+                    {"name":"segment_id", "ord":6, "coltype":"str"},
+                    {"name":"visit_duration", "ord":7, "coltype":"str"},
+                    {"name":"incremented_omnibox_typed_score", "ord":8, "coltype":"str"},
+                    {"name":"opener_visit", "ord":9, "coltype":"str"},
+                    {"name":"urls_url", "ord":10, "coltype":"str"},
+                    {"name":"title", "ord":11, "coltype":"str"},
+                    {"name":"visit_count", "ord":12, "coltype":"str"},
+                    {"name":"typed_count", "ord":13, "coltype":"str"},
+                    {"name":"last_visit_time", "ord":14, "coltype":"str"},
+                    {"name":"hidden", "ord":15, "coltype":"str"}
+                ]
+            }
         }
+
     ]
 }
