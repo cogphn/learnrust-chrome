@@ -28,4 +28,5 @@ pub struct Field {
     pub name: String,
     pub ord: usize,
     pub coltype: String,
+    pub nullable: usize
 }
