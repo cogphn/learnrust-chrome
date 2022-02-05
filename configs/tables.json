@@ -124,7 +124,34 @@
                     {"name":"site_name", "ord":15, "coltype":"str", "nullable":1}
                 ]
             }
+        },
+        {
+            "name":"moz_historyvisits",
+            "config":{
+                "query":"select a.id as hitoryvisitid, a.from_visit, a.place_id, a.visit_type, a.session, b.url, b.title, b.rev_host, b.visit_count, b.hidden, b.typed, b.frecency, b.last_visit_date, b.guid, b.foreign_count, b.url_hash, b.description, b.preview_image_url, b.origin_id, b.site_name from moz_historyvisits a join moz_places b on a.place_id = b.id",
+                "fields":[
+                    {"name":"hitoryvisitid", "ord":0,"coltype":"str", "nullable":1},
+                    {"name":"from_visit", "ord":1,"coltype":"str", "nullable":1},
+                    {"name":"place_id", "ord":2,"coltype":"str", "nullable":1},
+                    {"name":"visit_type", "ord":3,"coltype":"str", "nullable":1},
+                    {"name":"session", "ord":4,"coltype":"str", "nullable":1},
+                    {"name":"url", "ord":5,"coltype":"str", "nullable":1},
+                    {"name":"title", "ord":6,"coltype":"str", "nullable":1},
+                    {"name":"rev_host", "ord":7,"coltype":"str", "nullable":1},
+                    {"name":"visit_count", "ord":8,"coltype":"str", "nullable":1},
+                    {"name":"hidden", "ord":9,"coltype":"str", "nullable":1},
+                    {"name":"typed", "ord":10,"coltype":"str", "nullable":1},
+                    {"name":"frecency", "ord":11,"coltype":"str", "nullable":1},
+                    {"name":"last_visit_date", "ord":12,"coltype":"str", "nullable":1},
+                    {"name":"guid", "ord":13,"coltype":"str", "nullable":1},
+                    {"name":"foreign_count", "ord":14,"coltype":"str", "nullable":1},
+                    {"name":"url_hash", "ord":15,"coltype":"str", "nullable":1},
+                    {"name":"description", "ord":16,"coltype":"str", "nullable":1},
+                    {"name":"preview_image_url", "ord":17,"coltype":"str", "nullable":1},
+                    {"name":"origin_id", "ord":18,"coltype":"str", "nullable":1},
+                    {"name":"site_name", "ord":19,"coltype":"str", "nullable":1}
+                ]
+            }
         }
-
     ]
 }
