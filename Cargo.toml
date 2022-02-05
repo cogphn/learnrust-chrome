@@ -9,4 +9,6 @@ csv = "1.1.6"
 serde = {version = "1.0.136", features = ["derive"]}
 chrono = "0.4.19" 
 argparse = "0.2.2"
-#yaml = "0.3.0"
+
+serde_json = "1.0.48"
+serde_derive = "1.0.136"

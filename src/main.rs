@@ -1,5 +1,5 @@
 extern crate csv;
-//extern crate yaml_rust;
+extern crate argparse;
 
 use sqlite::State;
 use std::error::Error;
@@ -7,12 +7,11 @@ use csv::Writer;
 use serde::Serialize;
 use std::fs::File;
 use std::io::prelude::*;
-
 use chrono::{DateTime, NaiveDateTime, Utc, TimeZone, Duration};
-
-extern crate argparse;
-
 use argparse::{ArgumentParser, Store};
+
+#[path = "config_structs.rs"]
+mod config_structs;
 
 
 #[derive(Serialize)]
@@ -62,22 +61,87 @@ fn get_moz_ts(mts: i64) -> String {
     return d.to_string();
 }
 
+
+fn get_table_data(query: &str, infile: &str, output_path: &str, fields: Vec<config_structs::Field>) -> i32 {
+    let connection = sqlite::open(infile).unwrap();
+    let mut statement = connection.prepare(query).unwrap();
+    
+    println!("[*] Reading URL data...");
+    let mut rowtrack =0;
+    
+    let mut wtr = match Writer::from_path(output_path){
+        Ok(w) => w,
+        Err(e) => panic!("Cannot open file for writing URL output file for writing. Error: {}",e)
+    };
+    
+    //write header
+    let mut colnames = Vec::new();
+    for f in &fields {
+        let fname = f.name.to_string();
+        let mut fname1 = f.name.to_owned();
+        colnames.push(fname);
+        if f.coltype == "chrome_ts"{
+            fname1 += "_dtutc";
+            colnames.push(fname1);
+        }
+    }
+    match wtr.write_record(colnames) {
+        Ok(x) => x,
+        Err(e) => println!("[!] error writing URL data: {}",e)
+    };
+    
+    while let State::Row = statement.next().unwrap() {
+        let mut rowdata = vec![];
+
+        for f in &fields {
+            let idx = f.ord;
+            let d = statement.read::<String>(idx).unwrap();
+            rowdata.push(d);
+
+            if f.coltype == "chrome_ts"{
+                let tsval :i64 = statement.read::<i64>(idx).unwrap();
+                let dtutc = get_timestamp(tsval);
+                let str_dtutc = &dtutc.replace(" UTC","");
+                rowdata.push(str_dtutc.to_string());
+            }
+        }
+        
+        match wtr.serialize(rowdata){
+            Ok(x) => x,
+            Err(e) => println!("Error: {}",e)
+        };
+        rowtrack +=1;
+    } //while there's a row to read 
+        
+    println!("[*] Writing data...");
+    match wtr.flush() {
+        Ok(()) => println!("[*] URL data: wrote {} rows", rowtrack),
+        Err(e) => println!("[!] Error writing URL data: {}",e)
+    };
+
+    return 0;
+}
+
+
 fn main() -> Result<(), Box<dyn Error>> {
     println!("[*] Starting...");
 
     let mut infile = "".to_string();
     let mut output_path = "output.csv".to_string(); 
     let mut tablename = "".to_string();
+    let mut configpath = "".to_string();
     {
         let mut ap = ArgumentParser::new();
-        ap.set_description("Chrome Hisory parse");
+        ap.set_description("Browser Hisory parse");
         ap.refer(&mut output_path)
-            .add_option(&["-o","--output"], Store,
+            .add_option(&["-o","--output"], 
+            Store,
             "output file name"
         );
 
         ap.refer(&mut infile)
-        .add_option(&["-i","--input"], Store,
+        .add_option(&["-i","--input"], 
+            Store,
             "full path to History file"
         ).required();
 
@@ -86,6 +150,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             Store, 
             "table name (supported: urls, downloads,download_url_chains)"
         ).required();
+
+        ap.refer(&mut configpath).add_option(
+            &["-c","--config"],
+            Store,
+            "optional table config file"
+        );
         
         ap.parse_args_or_exit();
     }
@@ -93,7 +163,40 @@ fn main() -> Result<(), Box<dyn Error>> {
     let _urlop = format!("{output_path}");
     let _dlop = format!("{output_path}");
     let _dlucop = format!("{output_path}");
+    
+    let mut useconfig :bool = false;
+    //let mut configindex = 0;
+    //let mut configdata : config_structs::Root;
 
+    if configpath != ""{
+        //config file specified
+        println!("Config file specified: {}", configpath);
+        let configjsonstring = match std::fs::read_to_string(configpath) { 
+            Ok(x) => x.to_string(),
+            Err(e) => panic!("cannot read config file: {}",e)
+        };
+        let configdata : config_structs::Root = serde_json::from_str(&configjsonstring).expect("error loading config data");
+
+        for t in &configdata.tables {
+            if t.name == tablename {
+                useconfig = true;
+                let query = &t.config.query;
+                let fields = &t.config.fields;
+                let _ret = get_table_data(&query, &infile, &output_path, fields.to_vec());
+                break;
+            }
+            //configindex +=1;
+        }
+    }
+
+    if useconfig {
+        println!("[.] Done. (config used)");
+        std::process::exit(0);
+    }
+
+    
+
+    //assuming sqlite
     let connection = sqlite::open(infile).unwrap();
 
     if tablename == "urls"{
