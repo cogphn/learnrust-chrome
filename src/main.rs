@@ -165,8 +165,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let _dlucop = format!("{output_path}");
     
     let mut useconfig :bool = false;
-    //let mut configindex = 0;
-    //let mut configdata : config_structs::Root;
 
     if configpath != ""{
         //config file specified
